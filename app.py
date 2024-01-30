@@ -48,7 +48,6 @@ def predict_endpoint():
     for accident in data:
         processed_accident, accident_probability = process_accident_data(accident)
         severity, restdays, severity_type = make_prediction(processed_accident)
-        print("#$#####################",  severity, restdays, severity_type)
         response = {
             'id': accident['id'],
             'severity': severity,
@@ -57,7 +56,6 @@ def predict_endpoint():
             'type': severity_type
         }
         responses.append(response)
-    print(responses)
     return jsonify(responses)
 
 if __name__ == '__main__':
