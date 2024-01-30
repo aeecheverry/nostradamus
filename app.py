@@ -1,6 +1,8 @@
-from flask import Flask, request, jsonify
-import pandas as pd
 import pickle
+from flask import Flask, request, jsonify
+from models.predictor import Predictor
+import pandas as pd
+from utils.helpers import get_severity_type, calculate_probability
 import os
 
 app = Flask(__name__)
@@ -8,50 +10,55 @@ app = Flask(__name__)
 def convert_time_to_hour(X):
     return pd.to_datetime(X['time']).dt.hour.values.reshape(-1, 1)
 
-model_file = 'model.pkl'
-preprocessor_file = 'preprocessor.pkl'
+# Crear instancias de los modelos
+model_severity = Predictor('model.pkl', 'preprocessor.pkl')
+model_restdays = Predictor('model_restdays.pkl', 'preprocessor.pkl')
 
-with open(model_file, 'rb') as file:
-    model = pickle.load(file)
+# Cargar el diccionario de probabilidades
+with open('probability.pkl', 'rb') as file:
+    probability_dict = pickle.load(file)
 
-with open(preprocessor_file, 'rb') as file:
-    preprocessor = pickle.load(file)
+def process_accident_data(accident):
+    """Procesa los datos de un accidente individual."""
+    # Extraer y calcular información relevante
+    day_of_year = pd.to_datetime(accident['timestamp']).dayofyear
+    accident_probability = calculate_probability(day_of_year, probability_dict)
 
-def predict_severity(model, preprocessor, new_data):
-    """
-    Predict the severity of a new accident.
+    if 'time' not in accident:
+        accident['time'] = pd.to_datetime(accident['timestamp']).time().strftime('%H:%M:%S')
 
-    :param model: The trained classification model.
-    :param preprocessor: The preprocessing transformer used on the training data.
-    :param new_data: Dictionary with the details of the new accident.
-    :return: Severity prediction of the accident.
-    """
-    new_data_df = pd.DataFrame([new_data])
+    accident.pop('timestamp', None)
+    return accident, accident_probability
 
-    new_data_processed = preprocessor.transform(new_data_df)
-
-    severity_prediction = model.predict(new_data_processed)
-
-    return int(severity_prediction[0])
-
-def get_severity_type(severity):
-    severity_types = {0: "none", 1: "low", 2: "medium", 3: "high"}
-    return severity_types.get(severity, "unknown")
+def make_prediction(accident):
+    """Realiza predicciones basadas en los datos del accidente."""
+    severity = model_severity.predict(accident)
+    restdays = model_restdays.predict(accident)
+    severity_type = get_severity_type(severity)
+    return severity, restdays, severity_type
 
 @app.route('/predict', methods=['POST'])
-def predict():
+def predict_endpoint():
     data = request.json
-    if isinstance(data, list):
-        responses = []
-        for accident in data:
-            severity = predict_severity(model, preprocessor, accident)
-            severity_type = get_severity_type(severity)
-            responses.append({'geopoint': accident, 'severity': severity, 'type': severity_type})
-        return jsonify(responses)
-    else:
-        severity = predict_severity(model, preprocessor, data)
-        severity_type = get_severity_type(severity)
-        return jsonify({'geopoint': data, 'severity': severity, 'type': severity_type})
+    responses = []
+
+    if not isinstance(data, list):
+        data = [data]
+
+    for accident in data:
+        processed_accident, accident_probability = process_accident_data(accident)
+        severity, restdays, severity_type = make_prediction(processed_accident)
+        print("#$#####################",  severity, restdays, severity_type)
+        response = {
+            'id': accident['id'],
+            'severity': severity,
+            'restdays': restdays,
+            'probability': accident_probability,
+            'type': severity_type
+        }
+        responses.append(response)
+    print(responses)
+    return jsonify(responses)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
