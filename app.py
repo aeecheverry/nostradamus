@@ -2,10 +2,12 @@ import pickle
 from flask import Flask, request, jsonify
 from models.predictor import Predictor
 import pandas as pd
+from flask_cors import CORS 
 from utils.helpers import get_severity_type, calculate_probability
 import os
 
 app = Flask(__name__)
+CORS(app)
 
 def convert_time_to_hour(X):
     return pd.to_datetime(X['time']).dt.hour.values.reshape(-1, 1)
