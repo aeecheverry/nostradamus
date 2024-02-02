@@ -2,10 +2,12 @@ import pickle
 from flask import Flask, request, jsonify
 from models.predictor import Predictor
 import pandas as pd
+from flask_cors import CORS 
 from utils.helpers import get_severity_type, calculate_probability
 import os
 
 app = Flask(__name__)
+CORS(app)
 
 def convert_time_to_hour(X):
     return pd.to_datetime(X['time']).dt.hour.values.reshape(-1, 1)
@@ -48,7 +50,6 @@ def predict_endpoint():
     for accident in data:
         processed_accident, accident_probability = process_accident_data(accident)
         severity, restdays, severity_type = make_prediction(processed_accident)
-        print("#$#####################",  severity, restdays, severity_type)
         response = {
             'id': accident['id'],
             'severity': severity,
@@ -57,7 +58,6 @@ def predict_endpoint():
             'type': severity_type
         }
         responses.append(response)
-    print(responses)
     return jsonify(responses)
 
 if __name__ == '__main__':
