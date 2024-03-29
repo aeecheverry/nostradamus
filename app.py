@@ -5,8 +5,10 @@ import pandas as pd
 from flask_cors import CORS 
 from utils.helpers import get_severity_type, calculate_probability
 import os
+from api import api
 
 app = Flask(__name__)
+app.register_blueprint(api)
 CORS(app)
 
 def convert_time_to_hour(X):
@@ -59,6 +61,7 @@ def predict_endpoint():
         }
         responses.append(response)
     return jsonify(responses)
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
