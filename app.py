@@ -15,8 +15,8 @@ def convert_time_to_hour(X):
     return pd.to_datetime(X['time']).dt.hour.values.reshape(-1, 1)
 
 # Crear instancias de los modelos
-model_severity = Predictor('model.pkl', 'preprocessor.pkl')
-model_restdays = Predictor('model_restdays.pkl', 'preprocessor.pkl')
+#model_severity = Predictor('model.pkl', 'preprocessor.pkl')
+#model_restdays = Predictor('model_restdays.pkl', 'preprocessor.pkl')
 
 # Cargar el diccionario de probabilidades
 with open('probability.pkl', 'rb') as file:
@@ -64,5 +64,5 @@ def predict_endpoint():
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5001))
     app.run(debug=True, host='0.0.0.0', port=port)

@@ -60,7 +60,7 @@ def probability():
 def delta_gravedad(categoria, column):
     if categoria in ['DistManhattan', 'pcnt_edad']:
         delta = table[table['categoria']==categoria]['gravedad(dias)'].iloc[0]
-        return [(column+x, delta*x) for x in [-10, -1, 1, 10]]
+        return [(int(column)+x, delta*x) for x in [-10, -1, 1, 10]]
        
     rows = table[table['categoria']==categoria]
     #if is reference value
