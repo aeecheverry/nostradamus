@@ -18,15 +18,53 @@ def convert_time_to_hour(X):
 model_severity = Predictor('model.pkl', 'preprocessor.pkl')
 model_restdays = Predictor('model_restdays.pkl', 'preprocessor.pkl')
 
-# Cargar el diccionario de probabilidades
-with open('probability.pkl', 'rb') as file:
-    probability_dict = pickle.load(file)
+
+with open('gender_distribution.pkl', 'rb') as f:
+    prob_gender = pickle.load(f)
+with open('vehicle_type_distribution.pkl', 'rb') as f:
+    prob_vehicle_type = pickle.load(f)
+with open('age_distribution.pkl', 'rb') as f:
+    prob_age = pickle.load(f)
+
+def get_age_group(age):
+    """ Clasifica la edad en uno de los grupos predefinidos. """
+    if age < 18:
+        return '0-18'
+    elif age < 30:
+        return '19-30'
+    elif age < 40:
+        return '31-40'
+    elif age < 50:
+        return '41-50'
+    elif age < 60:
+        return '51-60'
+    else:
+        return '61-100'
+
+def calculate_probability(accident):
+    """Calcula la probabilidad compuesta basada en las distribuciones guardadas."""
+    gender = accident['gender']
+    age = accident['age']
+    vehicle_type = accident['vehicle_type']
+    age_group = get_age_group(age)
+    gender_prob = prob_gender.get(gender, 0)
+    vehicle_type_prob = prob_vehicle_type.get(vehicle_type, 0)
+    age_prob = prob_age.get(age_group, 0)
+    return gender_prob * age_prob * vehicle_type_prob
+
+#Temporal Severity
+def calculate_severity(restdays):
+    if restdays < 10:
+        return 0
+    elif restdays < 20:
+        return 1
+    else:
+        return 2
 
 def process_accident_data(accident):
     """Procesa los datos de un accidente individual."""
     # Extraer y calcular información relevante
-    day_of_year = pd.to_datetime(accident['timestamp']).dayofyear
-    accident_probability = calculate_probability(day_of_year, probability_dict)
+    accident_probability = calculate_probability(accident)
 
     if 'time' not in accident:
         accident['time'] = pd.to_datetime(accident['timestamp']).time().strftime('%H:%M:%S')
@@ -52,6 +90,7 @@ def predict_endpoint():
     for accident in data:
         processed_accident, accident_probability = process_accident_data(accident)
         severity, restdays, severity_type = make_prediction(processed_accident)
+        severity = calculate_severity(restdays)
         response = {
             'id': accident['id'],
             'severity': severity,
